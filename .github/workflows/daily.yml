@@ -1,0 +1,53 @@
+name: Daily pipeline
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
+
+jobs:
+  daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      S2_API_KEY: ${{ secrets.S2_API_KEY }}
+      ARXIV_CATEGORIES: ${{ vars.ARXIV_CATEGORIES }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --extra pipelines
+
+      # SPECTER2 base model ≈440MB — cache so we don't re-download daily.
+      - name: Cache Hugging Face models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-specter2-v1
+
+      - name: Ingest (arXiv)
+        run: uv run python -m pipelines.ingest
+
+      - name: Enrich (Semantic Scholar)
+        run: uv run python -m pipelines.enrich
+
+      - name: Embed (SPECTER2)
+        run: uv run python -m pipelines.embed
+
+      - name: Update user profile
+        run: uv run python -m pipelines.profile_update
+
+      - name: Roll up daily metrics
+        run: uv run python -m pipelines.metrics_rollup

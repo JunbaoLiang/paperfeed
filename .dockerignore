@@ -1,0 +1,13 @@
+.git
+.venv
+.next
+node_modules
+apps/web
+data
+mlruns
+tests
+migrations
+.github
+*.md
+.env*
+__pycache__
