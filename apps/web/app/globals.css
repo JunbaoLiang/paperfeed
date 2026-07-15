@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/* ————————————————————————————————————————————————
+   PaperFeed design tokens — "scholarly editorial"
+   Warm paper + ink, vermilion accent (arXiv heritage),
+   serif display for titles, mono for data.
+   ———————————————————————————————————————————————— */
+
+:root {
+  --paper: #f6f3ec;
+  --surface: #fffefa;
+  --surface-raised: #fffdf6;
+  --ink: #211c15;
+  --ink-muted: #6e6557;
+  --ink-faint: #a99f8d;
+  --line: #e3dccd;
+  --line-strong: #cfc6b2;
+  --accent: #b02c1c;
+  --accent-strong: #8e2113;
+  --accent-soft: #f6e7e2;
+  --gold: #9a6b1f;
+  --gold-soft: #f4ead4;
+  --ok: #3d6b4f;
+  --shadow-card: 0 1px 2px rgba(60, 45, 20, 0.05), 0 4px 16px -8px rgba(60, 45, 20, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #14110c;
+    --surface: #1d1913;
+    --surface-raised: #241f17;
+    --ink: #ece4d4;
+    --ink-muted: #a89d88;
+    --ink-faint: #6e6552;
+    --line: #322b1f;
+    --line-strong: #463d2c;
+    --accent: #e0664c;
+    --accent-strong: #ef8067;
+    --accent-soft: #3a1f16;
+    --gold: #d3a04b;
+    --gold-soft: #352a15;
+    --ok: #7fae90;
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 6px 20px -10px rgba(0, 0, 0, 0.5);
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-ok: var(--ok);
+  --font-display: var(--font-newsreader), "Songti SC", "STSong", Georgia, serif;
+  --font-data: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --shadow-card: var(--shadow-card);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* faint paper grain */
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--ink) 4%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 26px 26px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--paper);
+}
+
+/* Abstract clamp */
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* Staggered card entrance */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.card-enter {
+  animation: card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Dismiss: fade + collapse via grid-rows trick */
+.dismiss-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition:
+    grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.dismiss-wrap > * {
+  min-height: 0;
+}
+.dismiss-wrap.dismissing {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateX(24px) scale(0.98);
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--line) 25%,
+    color-mix(in srgb, var(--line) 40%, var(--surface)) 50%,
+    var(--line) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.6s linear infinite;
+}
+
+/* Editorial double rule */
+.double-rule {
+  border-top: 1px solid var(--line-strong);
+  position: relative;
+}
+.double-rule::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--line);
+}
+
+/* Horizontal rails: scrollable, no visible scrollbar */
+.rail {
+  scrollbar-width: none;
+}
+.rail::-webkit-scrollbar {
+  display: none;
+}
