@@ -37,30 +37,30 @@ Settings → Secrets and variables → Actions:
 | Secret | `R2_ENDPOINT_URL` | R2 endpoint |
 | Secret | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | R2 密钥 |
 | Secret | `MLFLOW_TRACKING_URI` | (可选)不填则用 DATABASE_URL |
-| Secret | `HF_TOKEN` | (用 Space 自动部署时)HF write token |
 | Variable | `ARXIV_CATEGORIES` | 如 `cs.LG,cs.AI,cs.CL,stat.ML` |
-| Variable | `HF_SPACE_ID` | 如 `yourname/paperfeed-api` |
 
 推送后,手动触发一次 **Daily pipeline** workflow 验证 M1(papers 有当日论文、embedding 非空)。
 
-## 4. Hugging Face Space(在线 API)
+## 4. Render(在线 API)
 
-1. 创建 Space:类型 **Docker**,硬件 CPU basic(免费)。
-2. Space Settings → Variables and secrets,添加:
-   - `DATABASE_URL`(secret)
-   - `API_TOKEN`(secret,自己生成随机串:`openssl rand -hex 32`)
-   - `R2_ENDPOINT_URL` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`(secret,V2 模型热加载用)
-3. 部署方式二选一:
-   - 配好 `HF_SPACE_ID` + `HF_TOKEN` 后,GitHub 的 **Deploy API to HF Space** workflow 自动推送;
-   - 或手动:`cp services/api/Dockerfile Dockerfile`,加上 Docker Space 的 README front-matter 后推到 Space 的 git。
-4. 验证:`curl -H "Authorization: Bearer $API_TOKEN" https://<space>.hf.space/feed?n=20`。
+> ADR A3 修订:HF Spaces 已取消免费 Docker Space(2026-07 起 PRO 专属),改用 Render 免费层。免费实例闲置 15 分钟休眠,冷启动约 1 分钟(单用户可接受)。
+
+1. [render.com](https://render.com) 用 GitHub 账号注册(免费,无需绑卡)。
+2. **New → Web Service** → 连接 `paperfeed` 仓库,Render 会读取根目录的 `render.yaml`(Docker 构建,`services/api/Dockerfile`,Free 实例)。也可以走 **New → Blueprint** 一键导入。
+3. 部署前在 Environment 里填 5 个环境变量:
+   - `DATABASE_URL`
+   - `API_TOKEN`(自己生成随机串:`openssl rand -hex 32`)
+   - `R2_ENDPOINT_URL` / `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`(V2 模型热加载用)
+4. Deploy 完成后拿到地址 `https://paperfeed-api-xxxx.onrender.com`,验证:
+   `curl -H "Authorization: Bearer $API_TOKEN" https://.../healthz` 和 `/feed?n=20`。
+5. 之后每次 push main,Render 自动重新部署(`autoDeploy: true`)。
 
 ## 5. Vercel(前端)
 
 1. Import GitHub 仓库,**Root Directory 选 `apps/web`**。
 2. 环境变量:
-   - `PAPERFEED_API_URL` = HF Space 地址(如 `https://yourname-paperfeed-api.hf.space`)
-   - `PAPERFEED_API_TOKEN` = 与 Space 相同的 API_TOKEN
+   - `PAPERFEED_API_URL` = Render 服务地址(如 `https://paperfeed-api-xxxx.onrender.com`)
+   - `PAPERFEED_API_TOKEN` = 与 Render 相同的 API_TOKEN
 3. Deploy,手机打开首页走通:刷 feed → 展开摘要 → 收藏 → 在 Neon 里查 `feedback` 表确认事件入库(M3 验收)。
 
 ## 6. MLflow 查看

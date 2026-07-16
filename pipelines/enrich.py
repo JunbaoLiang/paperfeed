@@ -96,9 +96,12 @@ def main() -> int:
                             .values([{"src_id": arxiv_id, "dst_id": d} for d in dst_in_corpus])
                             .on_conflict_do_nothing()
                         )
-                        result = session.execute(stmt)
-                        # rowcount can be -1 for multi-row inserts on some drivers
-                        edges_added += max(result.rowcount or 0, 0)
+                        # RETURNING gives an exact insert count (rowcount is -1
+                        # for multi-row inserts on psycopg3)
+                        inserted = session.execute(
+                            stmt.returning(Citation.src_id)
+                        ).all()
+                        edges_added += len(inserted)
             # Politeness: 1 req/s without a key is mandatory; keep it with a key too.
             time.sleep(1.0)
 

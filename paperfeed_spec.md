@@ -323,3 +323,4 @@ ARXIV_CATEGORIES(默认 cs.LG,cs.AI,cs.CL,stat.ML), HF_TOKEN(部署用)
 
 ## 15. 修订记录
 - v1.0(2026-07-14):初版,由项目讨论定稿。
+- v1.1(2026-07-16):**A3 修订** — Hugging Face Spaces 取消免费 Docker Space(改为 PRO 专属),在线 API 托管改为 Render 免费层(Docker Web Service,`render.yaml`,push main 自动部署)。取舍:免费实例闲置 15 分钟休眠,冷启动约 1 分钟,单用户可接受。其余架构不变(容器内容、鉴权、端口均兼容)。

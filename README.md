@@ -7,7 +7,7 @@
 ## 架构
 
 ```
-[GitHub Actions cron]                          [Hugging Face Spaces]        [Vercel]
+[GitHub Actions cron]                          [Render 免费层]               [Vercel]
  ingest → enrich → embed ──┐                   FastAPI 在线服务              Next.js 前端
  profile_update (每日)      ├──▶ Neon Postgres ◀── 召回→特征→打分→MMR ◀────── 信息流 UI
  train → evaluate (每周)    │    (papers/向量/    │  写 impressions           埋点事件
@@ -23,7 +23,7 @@
 | 层 | 选择 |
 |----|------|
 | 前端 | Next.js (App Router) @ Vercel |
-| 在线 API | FastAPI @ Hugging Face Spaces(Docker,无 torch,轻量镜像) |
+| 在线 API | FastAPI @ Render 免费层(Docker,无 torch,轻量镜像) |
 | 数据库 | Neon Postgres + pgvector(业务数据 + 向量检索 + MLflow backend 一库三用) |
 | Embedding | SPECTER2(论文专用,768 维,CPU 离线推理) |
 | 排序 | 规则打分(V0)→ LightGBM lambdarank(V2+) |
