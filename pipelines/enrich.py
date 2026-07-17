@@ -33,20 +33,31 @@ def citation_velocity(citation_count: int, published_at: datetime, now: datetime
 
 
 def fetch_batch(client: httpx.Client, arxiv_ids: list[str], api_key: str | None) -> list:
-    """POST one batch (≤100 ids) with exponential backoff on 429."""
+    """POST one batch (≤100 ids). Backoff on 429/5xx; on a persistent 4xx the
+    batch is SKIPPED (returns None) — the S2 API throws transient 400s under
+    load, and tomorrow's run refreshes the same papers anyway."""
     headers = {"x-api-key": api_key} if api_key else {}
     payload = {"ids": [f"ARXIV:{aid}" for aid in arxiv_ids]}
     delay = 1.0
     for attempt in range(MAX_RETRIES + 1):
         resp = client.post(S2_BATCH_URL, params={"fields": FIELDS}, json=payload, headers=headers)
-        if resp.status_code == 429 and attempt < MAX_RETRIES:
-            log_event(logger, "rate_limited", attempt=attempt, sleep=delay)
+        if resp.status_code == 200:
+            return resp.json()
+        retryable = resp.status_code == 429 or resp.status_code >= 500
+        if retryable and attempt < MAX_RETRIES:
+            log_event(logger, "s2_retry", status=resp.status_code, attempt=attempt, sleep=delay)
             time.sleep(delay)
             delay *= 2
             continue
-        resp.raise_for_status()
-        return resp.json()
-    raise RuntimeError("unreachable")
+        log_event(
+            logger,
+            "s2_batch_skipped",
+            status=resp.status_code,
+            body=resp.text[:200],
+            batch_size=len(arxiv_ids),
+        )
+        return None
+    return None
 
 
 def main() -> int:
@@ -67,11 +78,16 @@ def main() -> int:
         )
     log_event(logger, "enrich_start", papers=len(target_ids))
 
-    updated = edges_added = 0
+    updated = edges_added = skipped_batches = total_batches = 0
     with httpx.Client(timeout=60.0) as client:
         for i in range(0, len(target_ids), BATCH_SIZE):
             batch = target_ids[i : i + BATCH_SIZE]
+            total_batches += 1
             results = fetch_batch(client, batch, settings.s2_api_key)
+            if results is None:
+                skipped_batches += 1
+                time.sleep(1.0)
+                continue
             with session_scope() as session:
                 for arxiv_id, item in zip(batch, results, strict=False):
                     if not item:  # null = S2 doesn't know this paper (yet)
@@ -98,14 +114,22 @@ def main() -> int:
                         )
                         # RETURNING gives an exact insert count (rowcount is -1
                         # for multi-row inserts on psycopg3)
-                        inserted = session.execute(
-                            stmt.returning(Citation.src_id)
-                        ).all()
+                        inserted = session.execute(stmt.returning(Citation.src_id)).all()
                         edges_added += len(inserted)
             # Politeness: 1 req/s without a key is mandatory; keep it with a key too.
             time.sleep(1.0)
 
-    log_event(logger, "enrich_done", updated=updated, citation_edges_added=edges_added)
+    log_event(
+        logger,
+        "enrich_done",
+        updated=updated,
+        citation_edges_added=edges_added,
+        skipped_batches=skipped_batches,
+        total_batches=total_batches,
+    )
+    # Partial skips self-heal tomorrow; only a total S2 outage should page us.
+    if total_batches > 0 and skipped_batches == total_batches:
+        return 1
     return 0
 
 
