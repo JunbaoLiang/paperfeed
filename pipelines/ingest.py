@@ -5,69 +5,30 @@ paginated 100/page with ≥3s between requests (arXiv politeness rule). Sorted b
 lastUpdatedDate so revised versions (v2+) are caught as well as new papers.
 """
 
-import re
 import sys
 import time
 from datetime import UTC, datetime, timedelta
 
 import httpx
 
+# Parsing helpers moved to packages/core/arxiv.py (shared with the online
+# API's /external-read); re-exported here so callers/tests keep working.
+from packages.core.arxiv import (
+    ARXIV_API,
+    clean_abstract,  # noqa: F401 (re-export)
+    parse_entry,
+    split_arxiv_id,  # noqa: F401 (re-export)
+)
 from packages.core.config import get_settings
 from packages.core.db import session_scope
 from packages.core.logging import get_logger, log_event
 from packages.core.models import Paper
 
-# SPEC-GAP: spec §6.1 says http://, but arXiv 301-redirects to https now.
-ARXIV_API = "https://export.arxiv.org/api/query"
 PAGE_SIZE = 100
 REQUEST_INTERVAL_S = 3.0
 WINDOW_DAYS = 3
 
 logger = get_logger("pipelines.ingest")
-
-_VERSION_RE = re.compile(r"v(\d+)$")
-# Unescaped % starts a LaTeX comment; \% is a literal percent sign.
-_LATEX_COMMENT_RE = re.compile(r"(?<!\\)%.*?$", re.MULTILINE)
-
-
-def split_arxiv_id(raw: str) -> tuple[str, int]:
-    """'http://arxiv.org/abs/2501.12345v2' -> ('2501.12345', 2)."""
-    tail = raw.rsplit("/", 1)[-1]
-    m = _VERSION_RE.search(tail)
-    if m:
-        return tail[: m.start()], int(m.group(1))
-    return tail, 1
-
-
-def clean_abstract(text: str) -> str:
-    """Strip LaTeX comment residue, newlines, and redundant whitespace."""
-    text = _LATEX_COMMENT_RE.sub("", text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def parse_entry(entry) -> dict:
-    """feedparser entry -> papers row dict."""
-    arxiv_id, version = split_arxiv_id(entry.id)
-    pdf_url = next(
-        (link.href for link in entry.get("links", []) if link.get("type") == "application/pdf"),
-        f"https://arxiv.org/pdf/{arxiv_id}",
-    )
-    categories = [t["term"] for t in entry.get("tags", [])]
-    primary = entry.get("arxiv_primary_category", {}).get("term") or (
-        categories[0] if categories else "unknown"
-    )
-    return {
-        "arxiv_id": arxiv_id,
-        "version": version,
-        "title": clean_abstract(entry.title),
-        "abstract": clean_abstract(entry.summary),
-        "authors": [{"name": a.name} for a in entry.get("authors", [])],
-        "categories": categories,
-        "primary_category": primary,
-        "published_at": datetime(*entry.published_parsed[:6], tzinfo=UTC),
-        "arxiv_updated_at": datetime(*entry.updated_parsed[:6], tzinfo=UTC),
-        "pdf_url": pdf_url,
-    }
 
 
 def fetch_recent_entries(categories: list[str], window_days: int = WINDOW_DAYS) -> list[dict]:

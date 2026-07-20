@@ -50,10 +50,14 @@ def post_feedback(payload: FeedbackIn | list[FeedbackIn], session: Session = DbS
 
 
 def _fetch_paper_from_arxiv(arxiv_id: str) -> Paper:
-    """Single-id metadata fetch. Reuses the ingest parser (one implementation)."""
+    """Single-id metadata fetch. Reuses the shared parser (one implementation).
+
+    NOTE: must import from packages.core, never pipelines — the API image
+    ships only packages/ + services/ (this caused a prod-only 500 once).
+    """
     import feedparser
 
-    from pipelines.ingest import parse_entry
+    from packages.core.arxiv import parse_entry
 
     try:
         resp = httpx.get(
