@@ -16,6 +16,7 @@ from packages.core.models import (
     Paper,
     UserProfile,
 )
+from packages.core.profile import INTERACTION_EVENT_TYPES
 from services.api.app.deps import DbSession
 from services.api.app.recsys.features import (
     OnlineContext,
@@ -107,9 +108,9 @@ def _interleaving_enabled(profile_row: UserProfile) -> bool:
 def get_feed(n: int = Query(default=20, ge=1, le=50), session: Session = DbSession):
     now = datetime.now(UTC)
     octx = load_online_context(session)
-    interaction_count = octx.profile_row.interaction_count or 0
-
-    cold_start = interaction_count < COLD_START_INTERACTIONS
+    # Live count — the nightly-refreshed user_profile column would keep the
+    # user in cold-start mode up to 24h after they cross the threshold.
+    cold_start = octx.interaction_count < COLD_START_INTERACTIONS
 
     if cold_start:
         # Cold start: fresh route only, ranked by citation_velocity (spec §7).
@@ -236,11 +237,21 @@ def get_stats(session: Session = DbSession):
         )
 
     profile_row = session.get(UserProfile, "default")
+    # Live count (the onboarding banner reads this) — the nightly-refreshed
+    # column would keep showing the banner up to 24h after the 10th interaction.
+    live_count = int(
+        session.scalar(
+            select(func.count())
+            .select_from(Feedback)
+            .where(Feedback.event_type.in_(INTERACTION_EVENT_TYPES))
+        )
+        or 0
+    )
     return StatsResponse(
         daily=[DailyMetricOut.model_validate(d, from_attributes=True) for d in daily],
         models={"production": _model_info("production"), "staging": _model_info("staging")},
         profile=ProfileInfoOut(
-            interaction_count=(profile_row.interaction_count or 0) if profile_row else 0,
+            interaction_count=live_count,
             updated_at=profile_row.updated_at if profile_row else None,
         ),
     )

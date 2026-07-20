@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 import numpy as np
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from packages.core.features import (
@@ -16,6 +16,7 @@ from packages.core.features import (
     compute_features,
 )
 from packages.core.models import Feedback, Impression, Paper, UserProfile
+from packages.core.profile import INTERACTION_EVENT_TYPES
 
 POSITIVE_EVENTS = ("save", "external_read", "click_pdf", "click_abstract")
 CLICK_EVENTS = ("click_abstract", "click_pdf")
@@ -40,6 +41,10 @@ class OnlineContext:
     profile_row: UserProfile
     saved_papers: list[SavedPaperRef] = field(default_factory=list)
     positive_titles: dict[str, str] = field(default_factory=dict)  # arxiv_id -> title
+    # Live count from the feedback table. The user_profile.interaction_count
+    # column only refreshes nightly (profile_update); reading it online made
+    # the cold-start banner lag up to 24h behind the user's real activity.
+    interaction_count: int = 0
 
 
 def load_online_context(session: Session) -> OnlineContext:
@@ -55,6 +60,15 @@ def load_online_context(session: Session) -> OnlineContext:
         .where(Feedback.event_type.in_(POSITIVE_EVENTS))
         .order_by(Feedback.created_at.desc())
     ).all()
+
+    live_interaction_count = int(
+        session.scalar(
+            select(func.count())
+            .select_from(Feedback)
+            .where(Feedback.event_type.in_(INTERACTION_EVENT_TYPES))
+        )
+        or 0
+    )
 
     cat_counter: Counter[str] = Counter()
     author_counter: Counter[str] = Counter()
@@ -111,6 +125,7 @@ def load_online_context(session: Session) -> OnlineContext:
         profile_row=profile_row,
         saved_papers=saved_papers,
         positive_titles=positive_titles,
+        interaction_count=live_interaction_count,
     )
 
 
