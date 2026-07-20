@@ -23,7 +23,13 @@ logger = get_logger("pipelines.build_dataset")
 
 
 def label_for_events(event_types: set[str], max_dwell_ms: float | None) -> int | None:
-    """Spec §9.1 label rules; None = drop the impression."""
+    """Spec §9.1 label rules; None = drop the impression.
+
+    external_read (v1.2) implies the paper was read — strongest positive, and
+    exempt from the 'visible' requirement (there was no feed exposure).
+    """
+    if "external_read" in event_types:
+        return 2
     if "visible" not in event_types:
         return None
     if "save" in event_types or "click_pdf" in event_types:

@@ -46,6 +46,9 @@ jobs:
       - name: Embed (SPECTER2)
         run: uv run python -m pipelines.embed
 
+      - name: Materialize external reads
+        run: uv run python -m pipelines.external_reads
+
       - name: Update user profile
         run: uv run python -m pipelines.profile_update
 

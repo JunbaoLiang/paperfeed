@@ -66,13 +66,17 @@ def main() -> int:
     cutoff = now - timedelta(days=REFRESH_WINDOW_DAYS)
 
     with session_scope() as session:
-        target_ids = list(
-            session.scalars(
+        target_ids = [
+            pid
+            for pid in session.scalars(
                 select(Paper.arxiv_id)
                 .where(Paper.published_at >= cutoff)
                 .order_by(Paper.published_at.desc())
             )
-        )
+            # journal papers (spec v1.2) are keyed 'doi:...' — not valid ARXIV:
+            # ids for the batch endpoint; their citation data is set at insert
+            if not pid.startswith("doi:")
+        ]
         known_ids = set(target_ids) | set(
             session.scalars(select(Paper.arxiv_id).where(Paper.published_at < cutoff))
         )

@@ -23,8 +23,11 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 EMBEDDING_DIM = 768
 
-# feedback.event_type enum (spec §5)
-EVENT_TYPES = frozenset({"visible", "click_abstract", "click_pdf", "save", "dismiss", "dwell"})
+# feedback.event_type enum (spec §5; 'external_read' added in spec v1.2 —
+# papers the user read outside the feed, strongest explicit positive signal)
+EVENT_TYPES = frozenset(
+    {"visible", "click_abstract", "click_pdf", "save", "dismiss", "dwell", "external_read"}
+)
 
 RECALL_SOURCES = ("vector", "graph", "fresh", "explore")
 
@@ -135,6 +138,21 @@ class MetricsDaily(Base):
     ctr: Mapped[float | None] = mapped_column(REAL)
     profile_drift: Mapped[float | None] = mapped_column(REAL)
     model_version: Mapped[str | None] = mapped_column(Text)
+
+
+class ExternalRead(Base):
+    """Queue of externally-read papers (spec v1.2). processed_at NULL = waiting
+    for the paper's embedding; the nightly job then materializes an impression
+    with a real feature snapshot."""
+
+    __tablename__ = "external_reads"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    arxiv_id: Mapped[str] = mapped_column(Text, ForeignKey("papers.arxiv_id"), nullable=False)
+    noted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), server_default=text("now()")
+    )
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ProfileHistory(Base):

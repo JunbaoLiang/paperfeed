@@ -10,7 +10,9 @@ from datetime import datetime
 
 import numpy as np
 
-POSITIVE_WEIGHTS = {"save": 3.0, "click_pdf": 2.0, "click_abstract": 1.0}
+# external_read: user read the paper outside the feed and told us — as strong
+# as a save (SPEC-GAP: weight not in spec §8.2, added in v1.2).
+POSITIVE_WEIGHTS = {"save": 3.0, "external_read": 3.0, "click_pdf": 2.0, "click_abstract": 1.0}
 DWELL_WEIGHT = 1.0
 DWELL_MS_THRESHOLD = 20_000.0
 DISMISS_WEIGHT = -1.5
@@ -19,7 +21,9 @@ MAX_EVENT_AGE_DAYS = 180.0
 
 # Events that count toward interaction_count (cold-start threshold). 'visible'
 # is passive exposure, not an interaction. SPEC-GAP: spec doesn't enumerate.
-INTERACTION_EVENT_TYPES = frozenset({"click_abstract", "click_pdf", "save", "dismiss"})
+INTERACTION_EVENT_TYPES = frozenset(
+    {"click_abstract", "click_pdf", "save", "dismiss", "external_read"}
+)
 
 
 @dataclass

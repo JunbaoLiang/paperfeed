@@ -34,10 +34,14 @@ def _distinct_impressions_with(session, day: date, event_types: tuple[str, ...])
     start, end = day_bounds(day)
     return int(
         session.scalar(
-            select(func.count(func.distinct(Feedback.impression_id))).where(
+            select(func.count(func.distinct(Feedback.impression_id)))
+            .join(Impression, Impression.impression_id == Feedback.impression_id)
+            .where(
                 Feedback.event_type.in_(event_types),
                 Feedback.created_at >= start,
                 Feedback.created_at < end,
+                # external reads are not real exposures — keep CTR honest
+                Impression.recall_source != "external",
             )
         )
         or 0
@@ -50,7 +54,11 @@ def rollup_day(session, day: date) -> MetricsDaily:
         session.scalar(
             select(func.count())
             .select_from(Impression)
-            .where(Impression.shown_at >= start, Impression.shown_at < end)
+            .where(
+                Impression.shown_at >= start,
+                Impression.shown_at < end,
+                Impression.recall_source != "external",
+            )
         )
         or 0
     )
@@ -63,7 +71,11 @@ def rollup_day(session, day: date) -> MetricsDaily:
 
     model_version = session.scalar(
         select(Impression.model_version)
-        .where(Impression.shown_at >= start, Impression.shown_at < end)
+        .where(
+            Impression.shown_at >= start,
+            Impression.shown_at < end,
+            Impression.recall_source != "external",
+        )
         .group_by(Impression.model_version)
         .order_by(func.count().desc())
         .limit(1)

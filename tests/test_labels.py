@@ -20,6 +20,12 @@ def test_save_dominates_click():
     assert label_for_events({"visible", "click_abstract", "save"}, None) == 2
 
 
+def test_external_read_label():
+    # strongest positive, and exempt from the visible requirement
+    assert label_for_events({"external_read"}, None) == 2
+    assert label_for_events({"external_read", "visible"}, None) == 2
+
+
 def test_build_rows_drops_unseen_and_overrides_position():
     imp_seen, imp_unseen = uuid.uuid4(), uuid.uuid4()
     req = uuid.uuid4()

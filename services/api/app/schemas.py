@@ -6,7 +6,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-EventType = Literal["visible", "click_abstract", "click_pdf", "save", "dismiss", "dwell"]
+EventType = Literal[
+    "visible", "click_abstract", "click_pdf", "save", "dismiss", "dwell", "external_read"
+]
 
 
 class PaperOut(BaseModel):
@@ -86,6 +88,17 @@ class StatsResponse(BaseModel):
 
 class SeedProfileIn(BaseModel):
     keywords: list[str] = Field(min_length=1, max_length=10)
+
+
+class ExternalReadIn(BaseModel):
+    ref: str = Field(min_length=4, max_length=300)  # arXiv id or abs/pdf URL
+
+
+class ExternalReadOut(BaseModel):
+    ok: bool = True
+    status: Literal["recorded", "pending_embedding", "already_recorded"]
+    arxiv_id: str
+    title: str
 
 
 class OkResponse(BaseModel):

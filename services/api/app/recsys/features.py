@@ -17,8 +17,11 @@ from packages.core.features import (
 )
 from packages.core.models import Feedback, Impression, Paper, UserProfile
 
-POSITIVE_EVENTS = ("save", "click_pdf", "click_abstract")
+POSITIVE_EVENTS = ("save", "external_read", "click_pdf", "click_abstract")
 CLICK_EVENTS = ("click_abstract", "click_pdf")
+# The "positive library" behind max_sim_saved and reason strings: explicit
+# saves plus externally-read papers (spec v1.2).
+LIBRARY_EVENTS = ("save", "external_read")
 SAVED_EMBEDDINGS_LIMIT = 100
 
 
@@ -66,7 +69,7 @@ def load_online_context(session: Session) -> OnlineContext:
         author_counter.update(a.get("name", "") for a in (paper.authors or []))
         positive_titles.setdefault(paper.arxiv_id, paper.title)
         if (
-            event_type == "save"
+            event_type in LIBRARY_EVENTS
             and paper.arxiv_id not in seen_saved
             and len(saved_papers) < SAVED_EMBEDDINGS_LIMIT
         ):

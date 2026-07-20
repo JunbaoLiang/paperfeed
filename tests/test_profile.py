@@ -22,6 +22,7 @@ def make_interaction(embedding, event_types, days_ago=0.0, dwell_ms=None):
 
 def test_weights():
     assert interaction_weight({"save"}, None) == 3.0
+    assert interaction_weight({"external_read"}, None) == 3.0
     assert interaction_weight({"click_pdf"}, None) == 2.0
     assert interaction_weight({"click_abstract"}, None) == 1.0
     assert interaction_weight({"dismiss"}, None) == -1.5

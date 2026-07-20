@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { SavedItem, SavedResponse } from "@/lib/types";
+import ExternalReadForm from "@/components/ExternalReadForm";
 import SavedCard from "@/components/SavedCard";
 import { FeedSkeleton } from "@/components/Skeletons";
 import { BookmarkIcon } from "@/components/icons";
@@ -36,6 +37,8 @@ export default function SavedPage() {
           saved papers
         </p>
       </div>
+
+      <ExternalReadForm />
 
       {loading && <FeedSkeleton count={3} />}
 

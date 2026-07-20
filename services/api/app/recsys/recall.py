@@ -24,7 +24,10 @@ OVEREXPOSED_WINDOW_HOURS = 72
 OVEREXPOSED_COUNT = 2
 
 # Strong positive signal set used for the graph route (spec §7: 用户强正反馈论文)
-STRONG_POSITIVE_EVENTS = ("save", "click_pdf")
+STRONG_POSITIVE_EVENTS = ("save", "click_pdf", "external_read")
+
+# Never recommend papers the user saved, dismissed, or already read elsewhere.
+EXCLUDED_EVENTS = ("save", "dismiss", "external_read")
 
 
 @dataclass
@@ -39,7 +42,7 @@ def excluded_paper_ids(session: Session, now: datetime) -> set[str]:
     saved_or_dismissed = session.scalars(
         select(Impression.paper_id)
         .join(Feedback, Feedback.impression_id == Impression.impression_id)
-        .where(Feedback.event_type.in_(("save", "dismiss")))
+        .where(Feedback.event_type.in_(EXCLUDED_EVENTS))
         .distinct()
     ).all()
     overexposed = session.scalars(
